@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-SOURCE_PNG="${1:-/Users/grigorymordokhovich/Downloads/icon.png}"
+SOURCE_PNG="${1:-$PROJECT_DIR/icon.png}"
 ICONSET_DIR="$PROJECT_DIR/dist/AppIcon.iconset"
 OUTPUT_ICNS="$PROJECT_DIR/AppIcon.icns"
 

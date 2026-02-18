@@ -78,23 +78,23 @@ Project includes scripts for stable local install/signing workflow.
 ### 1) Generate app icon (`AppIcon.icns`)
 
 ```bash
-/Users/grigorymordokhovich/Documents/Develop/SleepLock/scripts/generate_app_icon.sh
+./scripts/generate_app_icon.sh
 ```
 
 You can pass a custom PNG path:
 
 ```bash
-/Users/grigorymordokhovich/Documents/Develop/SleepLock/scripts/generate_app_icon.sh /absolute/path/icon.png
+./scripts/generate_app_icon.sh ./icon.png
 ```
 
 ### 2) Build and install to `/Applications`
 
 ```bash
-/Users/grigorymordokhovich/Documents/Develop/SleepLock/scripts/build_and_install_app.sh
+./scripts/build_and_install_app.sh
 ```
 
 Output app locations:
-- `/Users/grigorymordokhovich/Documents/Develop/SleepLock/dist/SleepLock.app`
+- `./dist/SleepLock.app`
 - `/Applications/SleepLock.app`
 
 ## Development
@@ -102,14 +102,14 @@ Output app locations:
 ### Run tests
 
 ```bash
-cd /Users/grigorymordokhovich/Documents/Develop/SleepLock
+cd .
 swift test
 ```
 
 ### Release build
 
 ```bash
-cd /Users/grigorymordokhovich/Documents/Develop/SleepLock
+cd .
 swift build -c release
 ```
 
@@ -120,11 +120,11 @@ GitHub remote:
 
 ## Project structure
 
-- `/Users/grigorymordokhovich/Documents/Develop/SleepLock/Sources/SleepLock/SleepLockApp.swift`
-- `/Users/grigorymordokhovich/Documents/Develop/SleepLock/Sources/SleepLock/StatusBarController.swift`
-- `/Users/grigorymordokhovich/Documents/Develop/SleepLock/Sources/SleepLock/SleepController.swift`
-- `/Users/grigorymordokhovich/Documents/Develop/SleepLock/Sources/SleepLock/SleepSystemController.swift`
-- `/Users/grigorymordokhovich/Documents/Develop/SleepLock/Sources/SleepLock/LaunchAtLoginManager.swift`
-- `/Users/grigorymordokhovich/Documents/Develop/SleepLock/Sources/SleepLock/SleepTimeFormatter.swift`
-- `/Users/grigorymordokhovich/Documents/Develop/SleepLock/scripts/build_and_install_app.sh`
-- `/Users/grigorymordokhovich/Documents/Develop/SleepLock/scripts/generate_app_icon.sh`
+- `Sources/SleepLock/SleepLockApp.swift`
+- `Sources/SleepLock/StatusBarController.swift`
+- `Sources/SleepLock/SleepController.swift`
+- `Sources/SleepLock/SleepSystemController.swift`
+- `Sources/SleepLock/LaunchAtLoginManager.swift`
+- `Sources/SleepLock/SleepTimeFormatter.swift`
+- `scripts/build_and_install_app.sh`
+- `scripts/generate_app_icon.sh`
