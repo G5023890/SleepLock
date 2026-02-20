@@ -1,6 +1,6 @@
 # SleepLock
 
-SleepLock is a native macOS menu bar utility that controls when your Mac is allowed to sleep.
+SleepLock is a native macOS menu bar utility that controls when your Mac is allowed to sleep & when your Mac stays awake.
 
 The app is designed as a lightweight system-style tool:
 - menu bar only (`LSUIElement = true`)
