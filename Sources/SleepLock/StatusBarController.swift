@@ -176,7 +176,7 @@ final class StatusBarController: NSObject {
     }
 
     private func symbolImage(name: String) -> NSImage? {
-        let config = NSImage.SymbolConfiguration(pointSize: 14.3, weight: .regular)
+        let config = NSImage.SymbolConfiguration(pointSize: 18, weight: .regular)
         let image = NSImage(systemSymbolName: name, accessibilityDescription: "SleepLock status")?
             .withSymbolConfiguration(config)
         image?.isTemplate = true
@@ -184,9 +184,9 @@ final class StatusBarController: NSObject {
     }
 
     private func makeStartupCompositeIcon() -> NSImage? {
-        let size = NSSize(width: 17.6, height: 15.4)
-        let moonConfig = NSImage.SymbolConfiguration(pointSize: 13.75, weight: .regular)
-        let sunConfig = NSImage.SymbolConfiguration(pointSize: 8.8, weight: .regular)
+        let size = NSSize(width: 19.4, height: 16.9)
+        let moonConfig = NSImage.SymbolConfiguration(pointSize: 15.1, weight: .regular)
+        let sunConfig = NSImage.SymbolConfiguration(pointSize: 9.7, weight: .regular)
         guard
             let moon = NSImage(systemSymbolName: "moon.fill", accessibilityDescription: "SleepLock startup moon")?
                 .withSymbolConfiguration(moonConfig),
@@ -200,8 +200,8 @@ final class StatusBarController: NSObject {
         sun.isTemplate = true
 
         let composite = NSImage(size: size, flipped: false) { rect in
-            let moonRect = NSRect(x: 1.1, y: 1.1, width: 13.2, height: 13.2)
-            let sunRect = NSRect(x: 7.7, y: 6.6, width: 8.58, height: 8.58)
+            let moonRect = NSRect(x: 1.2, y: 1.2, width: 14.5, height: 14.5)
+            let sunRect = NSRect(x: 8.5, y: 7.3, width: 9.4, height: 9.4)
             moon.draw(in: moonRect)
             sun.draw(in: sunRect)
             return true

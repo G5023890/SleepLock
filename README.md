@@ -118,6 +118,11 @@ swift build -c release
 GitHub remote:
 - [https://github.com/G5023890/SleepLock](https://github.com/G5023890/SleepLock)
 
+## License
+
+This project is licensed under **Apache-2.0**.
+See `/Users/grigorymordokhovich/Documents/Develop/SleepLock/LICENSE`.
+
 ## Project structure
 
 - `Sources/SleepLock/SleepLockApp.swift`
