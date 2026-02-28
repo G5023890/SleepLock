@@ -2,6 +2,9 @@ import AppKit
 
 @MainActor
 final class StatusBarController: NSObject {
+    private static let customIdleIconName = "SleepLockStatus_36x36@2x"
+    private static let customIdleIconExt = "png"
+
     private let statusItem: NSStatusItem
     private let sleepController: SleepController
     private let launchAtLoginManager = LaunchAtLoginManager()
@@ -184,6 +187,10 @@ final class StatusBarController: NSObject {
     }
 
     private func makeStartupCompositeIcon() -> NSImage? {
+        if let custom = makeCustomIdleIcon() {
+            return custom
+        }
+
         let size = NSSize(width: 19.4, height: 16.9)
         let moonConfig = NSImage.SymbolConfiguration(pointSize: 15.1, weight: .regular)
         let sunConfig = NSImage.SymbolConfiguration(pointSize: 9.7, weight: .regular)
@@ -208,6 +215,27 @@ final class StatusBarController: NSObject {
         }
         composite.isTemplate = true
         return composite
+    }
+
+    private func makeCustomIdleIcon() -> NSImage? {
+        guard
+            let imageURL = Bundle.module.url(
+                forResource: Self.customIdleIconName,
+                withExtension: Self.customIdleIconExt
+            ),
+            let source = NSImage(contentsOf: imageURL)
+        else {
+            return nil
+        }
+
+        let size = NSSize(width: 19.4, height: 16.9)
+        let rendered = NSImage(size: size, flipped: false) { rect in
+            NSGraphicsContext.current?.imageInterpolation = .high
+            source.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
+            return true
+        }
+        rendered.isTemplate = false
+        return rendered
     }
 
     private func updateTooltip() {

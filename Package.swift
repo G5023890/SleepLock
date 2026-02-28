@@ -14,7 +14,10 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "SleepLock"
+            name: "SleepLock",
+            resources: [
+                .process("Resources")
+            ]
         ),
         .testTarget(
             name: "SleepLockTests",
