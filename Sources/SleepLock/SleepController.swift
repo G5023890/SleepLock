@@ -1,4 +1,5 @@
 import Foundation
+import IOKit.pwr_mgt
 
 @MainActor
 final class SleepController {
@@ -45,6 +46,7 @@ final class SleepController {
 
     private var activityToken: NSObjectProtocol?
     private var timer: Timer?
+    private var userActivityTimer: Timer?
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -95,6 +97,7 @@ final class SleepController {
     private func apply(mode newMode: SleepMode) {
         // Always reset previous timer/activity before setting new mode to avoid token leaks.
         stopTimer()
+        stopUserActivityUpdates()
         stopAwakeActivity()
 
         mode = newMode
@@ -104,21 +107,24 @@ final class SleepController {
             return
         case .keepAwakeInfinite:
             startAwakeActivity()
+            startUserActivityUpdates()
         case .keepAwakeUntil(let endDate), .allowSleepAfter(let endDate):
             guard endDate > Date() else {
                 mode = .off
                 return
             }
             startAwakeActivity()
+            startUserActivityUpdates()
             startTimerUpdates()
         }
     }
 
     private func startAwakeActivity() {
         activityToken = ProcessInfo.processInfo.beginActivity(
-            options: [.idleSystemSleepDisabled],
+            options: [.idleSystemSleepDisabled, .idleDisplaySleepDisabled],
             reason: "SleepLock keeps the Mac awake"
         )
+        pulseUserActivity()
     }
 
     private func stopAwakeActivity() {
@@ -140,6 +146,29 @@ final class SleepController {
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
+    }
+
+    private func startUserActivityUpdates() {
+        userActivityTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.pulseUserActivity()
+            }
+        }
+        userActivityTimer?.tolerance = 2
+    }
+
+    private func stopUserActivityUpdates() {
+        userActivityTimer?.invalidate()
+        userActivityTimer = nil
+    }
+
+    private func pulseUserActivity() {
+        var assertionID: IOPMAssertionID = 0
+        _ = IOPMAssertionDeclareUserActivity(
+            "SleepLock keeps display active" as CFString,
+            kIOPMUserActiveLocal,
+            &assertionID
+        )
     }
 
     private func handleTimerTick() {
