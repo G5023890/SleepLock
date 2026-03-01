@@ -4,7 +4,7 @@ SleepLock is a native macOS menu bar utility that controls when your Mac is allo
 
 ## UI Preview
 
-![SleepLock menu preview](docs/images/SleepLockMenu.png)
+<img src="docs/images/SleepLockMenu.png" alt="SleepLock menu preview" width="221" />
 
 The app is designed as a lightweight system-style tool:
 - menu bar only (`LSUIElement = true`)
