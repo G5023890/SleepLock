@@ -62,6 +62,7 @@ final class StatusBarController: NSObject {
 
     private func buildMenu() -> NSMenu {
         let menu = NSMenu()
+        menu.autoenablesItems = false
 
         menuTitle.isEnabled = false
         menu.addItem(menuTitle)
@@ -70,9 +71,7 @@ final class StatusBarController: NSObject {
         menu.addItem(item(title: "Turn Off", action: #selector(turnOff)))
 
         menu.addItem(.separator())
-        let keepAwakeHeader = NSMenuItem(title: "Keep a wake for:", action: nil, keyEquivalent: "")
-        keepAwakeHeader.isEnabled = false
-        menu.addItem(keepAwakeHeader)
+        menu.addItem(sectionHeader(symbol: "☀", text: "Keep a wake for:"))
 
         menu.addItem(durationItem(title: "1 hour", seconds: 60 * 60, selector: #selector(keepAwakeForDuration(_:))))
         menu.addItem(durationItem(title: "3 Hour", seconds: 3 * 60 * 60, selector: #selector(keepAwakeForDuration(_:))))
@@ -80,9 +79,7 @@ final class StatusBarController: NSObject {
         menu.addItem(item(title: "Until manually turn off", action: #selector(keepAwakeIndefinitely)))
 
         menu.addItem(.separator())
-        let allowSleepHeader = NSMenuItem(title: "Allow Sleep In:", action: nil, keyEquivalent: "")
-        allowSleepHeader.isEnabled = false
-        menu.addItem(allowSleepHeader)
+        menu.addItem(sectionHeader(symbol: "☾", text: "Allow Sleep In:"))
 
         menu.addItem(durationItem(title: "30 min", seconds: 30 * 60, selector: #selector(allowSleepInDuration(_:))))
         menu.addItem(durationItem(title: "1 hour", seconds: 60 * 60, selector: #selector(allowSleepInDuration(_:))))
@@ -109,6 +106,22 @@ final class StatusBarController: NSObject {
     private func durationItem(title: String, seconds: TimeInterval, selector: Selector) -> NSMenuItem {
         let menuItem = item(title: title, action: selector)
         menuItem.representedObject = seconds
+        return menuItem
+    }
+
+    private func sectionHeader(symbol: String, text: String) -> NSMenuItem {
+        let menuItem = NSMenuItem()
+        menuItem.attributedTitle = NSAttributedString(
+            string: "\(symbol) \(text)",
+            attributes: [
+                .font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize),
+                .foregroundColor: NSColor.labelColor
+            ]
+        )
+        menuItem.isEnabled = true
+        menuItem.action = nil
+        menuItem.target = nil
+
         return menuItem
     }
 
