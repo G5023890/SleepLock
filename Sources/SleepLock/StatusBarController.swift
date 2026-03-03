@@ -64,7 +64,9 @@ final class StatusBarController: NSObject {
         let menu = NSMenu()
         menu.autoenablesItems = false
 
-        menuTitle.isEnabled = false
+        menuTitle.target = self
+        menuTitle.action = #selector(showAbout)
+        menuTitle.isEnabled = true
         menu.addItem(menuTitle)
         menu.addItem(.separator())
 
@@ -150,6 +152,30 @@ final class StatusBarController: NSObject {
 
     @objc private func quitApp() {
         NSApp.terminate(nil)
+    }
+
+    @objc private func showAbout() {
+        let shortVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "1.0"
+        let buildVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String) ?? shortVersion
+
+        let description = "SleepLock is a native macOS menu bar utility that controls when your Mac is allowed to sleep & when your Mac stays awake."
+        let aboutText = "\(description)\n\nVersion \(shortVersion) (\(buildVersion))\nCopyright 2026"
+        let credits = NSAttributedString(
+            string: aboutText,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: NSFont.systemFontSize),
+                .foregroundColor: NSColor.labelColor
+            ]
+        )
+
+        NSApp.orderFrontStandardAboutPanel(options: [
+            .applicationName: "SleepLock",
+            .applicationIcon: NSApp.applicationIconImage,
+            .credits: credits,
+            .version: shortVersion,
+            .applicationVersion: "Version \(shortVersion) (\(buildVersion))"
+        ])
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func updateUI() {
