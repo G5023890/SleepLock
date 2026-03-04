@@ -13,6 +13,8 @@ LEGACY_INSTALL_DIR="${LEGACY_INSTALL_DIR:-/Applications/SleepLock.app}"
 ICON_SOURCE="${ICON_SOURCE:-$PROJECT_DIR/AppIcon.icns}"
 SKIP_SIGN="${SKIP_SIGN:-0}"
 SIGN_IDENTITY="${SIGN_IDENTITY:-}"
+APP_VERSION="${APP_VERSION:-1.3.0}"
+BUILD_VERSION="${BUILD_VERSION:-3}"
 RESOLVED_SIGN_IDENTITY=""
 STAGING_ROOT=""
 APP_STAGE=""
@@ -158,9 +160,9 @@ ${ICON_PLIST_BLOCK}
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.0</string>
+  <string>${APP_VERSION}</string>
   <key>CFBundleVersion</key>
-  <string>1</string>
+  <string>${BUILD_VERSION}</string>
   <key>LSMinimumSystemVersion</key>
   <string>13.0</string>
   <key>LSUIElement</key>
