@@ -11,6 +11,11 @@ final class StatusBarController: NSObject {
 
     private let menuTitle = NSMenuItem(title: "SleepLock", action: nil, keyEquivalent: "")
     private var launchAtLoginItem: NSMenuItem?
+    
+    private struct DurationPayload {
+        let seconds: TimeInterval
+        let selection: SleepController.ActiveSelection
+    }
 
     init(controller: SleepController) {
         self.sleepController = controller
@@ -64,29 +69,78 @@ final class StatusBarController: NSObject {
         let menu = NSMenu()
         menu.autoenablesItems = false
 
-        menuTitle.target = self
-        menuTitle.action = #selector(showAbout)
-        menuTitle.isEnabled = true
+        menuTitle.target = nil
+        menuTitle.action = nil
+        menuTitle.isEnabled = false
         menu.addItem(menuTitle)
         menu.addItem(.separator())
 
-        menu.addItem(item(title: "Turn Off", action: #selector(turnOff)))
+        menu.addItem(sectionHeader(symbolName: "sun.max.fill", text: "Keep awake"))
+
+        menu.addItem(
+            durationItem(
+                title: "1 hour",
+                seconds: 60 * 60,
+                selection: .keepAwake1h,
+                selector: #selector(keepAwakeForDuration(_:)),
+                checked: sleepController.activeSelection == .keepAwake1h
+            )
+        )
+        menu.addItem(
+            durationItem(
+                title: "3 hours",
+                seconds: 3 * 60 * 60,
+                selection: .keepAwake3h,
+                selector: #selector(keepAwakeForDuration(_:)),
+                checked: sleepController.activeSelection == .keepAwake3h
+            )
+        )
+        menu.addItem(
+            durationItem(
+                title: "5 hours",
+                seconds: 5 * 60 * 60,
+                selection: .keepAwake5h,
+                selector: #selector(keepAwakeForDuration(_:)),
+                checked: sleepController.activeSelection == .keepAwake5h
+            )
+        )
+        let untilTurnedOff = indentedItem(title: "Until turned off", action: #selector(keepAwakeIndefinitely))
+        untilTurnedOff.state = sleepController.activeSelection == .keepAwakeInfinite ? .on : .off
+        menu.addItem(untilTurnedOff)
+
+        menu.addItem(spacerItem())
+        menu.addItem(sectionHeader(symbolName: "moon.fill", text: "Allow sleep in"))
+
+        menu.addItem(
+            durationItem(
+                title: "30 min",
+                seconds: 30 * 60,
+                selection: .allowSleep30m,
+                selector: #selector(allowSleepInDuration(_:)),
+                checked: sleepController.activeSelection == .allowSleep30m
+            )
+        )
+        menu.addItem(
+            durationItem(
+                title: "1 hour",
+                seconds: 60 * 60,
+                selection: .allowSleep1h,
+                selector: #selector(allowSleepInDuration(_:)),
+                checked: sleepController.activeSelection == .allowSleep1h
+            )
+        )
+        menu.addItem(
+            durationItem(
+                title: "2 hours",
+                seconds: 2 * 60 * 60,
+                selection: .allowSleep2h,
+                selector: #selector(allowSleepInDuration(_:)),
+                checked: sleepController.activeSelection == .allowSleep2h
+            )
+        )
 
         menu.addItem(.separator())
-        menu.addItem(sectionHeader(symbol: "☀", text: "Keep a wake for:"))
-
-        menu.addItem(durationItem(title: "1 hour", seconds: 60 * 60, selector: #selector(keepAwakeForDuration(_:))))
-        menu.addItem(durationItem(title: "3 Hour", seconds: 3 * 60 * 60, selector: #selector(keepAwakeForDuration(_:))))
-        menu.addItem(durationItem(title: "5 Hour", seconds: 5 * 60 * 60, selector: #selector(keepAwakeForDuration(_:))))
-        menu.addItem(item(title: "Until manually turn off", action: #selector(keepAwakeIndefinitely)))
-
-        menu.addItem(.separator())
-        menu.addItem(sectionHeader(symbol: "☾", text: "Allow Sleep In:"))
-
-        menu.addItem(durationItem(title: "30 min", seconds: 30 * 60, selector: #selector(allowSleepInDuration(_:))))
-        menu.addItem(durationItem(title: "1 hour", seconds: 60 * 60, selector: #selector(allowSleepInDuration(_:))))
-        menu.addItem(durationItem(title: "2 hour", seconds: 2 * 60 * 60, selector: #selector(allowSleepInDuration(_:))))
-
+        menu.addItem(item(title: "Disable SleepLock", action: #selector(turnOff)))
         menu.addItem(.separator())
 
         let launchItem = item(title: "Launch at login", action: #selector(toggleLaunchAtLogin))
@@ -94,6 +148,7 @@ final class StatusBarController: NSObject {
         menu.addItem(launchItem)
         launchAtLoginItem = launchItem
 
+        menu.addItem(item(title: "About SleepLock", action: #selector(showAbout)))
         menu.addItem(item(title: "Quit", action: #selector(quitApp)))
 
         return menu
@@ -105,25 +160,79 @@ final class StatusBarController: NSObject {
         return menuItem
     }
 
-    private func durationItem(title: String, seconds: TimeInterval, selector: Selector) -> NSMenuItem {
-        let menuItem = item(title: title, action: selector)
-        menuItem.representedObject = seconds
+    private func durationItem(
+        title: String,
+        seconds: TimeInterval,
+        selection: SleepController.ActiveSelection,
+        selector: Selector,
+        checked: Bool
+    ) -> NSMenuItem {
+        let menuItem = indentedItem(title: title, action: selector)
+        menuItem.representedObject = DurationPayload(seconds: seconds, selection: selection)
+        menuItem.state = checked ? .on : .off
         return menuItem
     }
 
-    private func sectionHeader(symbol: String, text: String) -> NSMenuItem {
+    private func sectionHeader(symbolName: String, text: String) -> NSMenuItem {
         let menuItem = NSMenuItem()
-        menuItem.attributedTitle = NSAttributedString(
-            string: "\(symbol) \(text)",
-            attributes: [
-                .font: NSFont.boldSystemFont(ofSize: NSFont.systemFontSize),
-                .foregroundColor: NSColor.labelColor
-            ]
+        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .semibold)
+        let color = NSColor.labelColor
+
+        let title = NSMutableAttributedString()
+        if let symbolImage = NSImage(
+            systemSymbolName: symbolName,
+            accessibilityDescription: text
+        )?.withSymbolConfiguration(.init(pointSize: 14, weight: .semibold)) {
+            symbolImage.isTemplate = true
+            let attachment = NSTextAttachment()
+            attachment.image = symbolImage
+            title.append(NSAttributedString(attachment: attachment))
+            title.append(NSAttributedString(string: " "))
+        }
+        title.append(
+            NSAttributedString(
+                string: text,
+                attributes: [
+                    .font: font,
+                    .foregroundColor: color
+                ]
+            )
         )
+        menuItem.attributedTitle = title
         menuItem.isEnabled = true
         menuItem.action = nil
         menuItem.target = nil
 
+        return menuItem
+    }
+
+    private func spacerItem() -> NSMenuItem {
+        let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        item.isEnabled = false
+        item.attributedTitle = NSAttributedString(
+            string: " ",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 6),
+                .foregroundColor: NSColor.clear
+            ]
+        )
+        return item
+    }
+
+    private func indentedItem(title: String, action: Selector?) -> NSMenuItem {
+        let menuItem = item(title: title, action: action)
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.firstLineHeadIndent = 12
+        paragraphStyle.headIndent = 12
+
+        menuItem.attributedTitle = NSAttributedString(
+            string: title,
+            attributes: [
+                .font: NSFont.menuFont(ofSize: 0),
+                .foregroundColor: NSColor.labelColor,
+                .paragraphStyle: paragraphStyle
+            ]
+        )
         return menuItem
     }
 
@@ -136,13 +245,13 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func keepAwakeForDuration(_ sender: NSMenuItem) {
-        guard let seconds = sender.representedObject as? TimeInterval else { return }
-        sleepController.keepAwake(for: seconds)
+        guard let payload = sender.representedObject as? DurationPayload else { return }
+        sleepController.keepAwake(for: payload.seconds, selection: payload.selection)
     }
 
     @objc private func allowSleepInDuration(_ sender: NSMenuItem) {
-        guard let seconds = sender.representedObject as? TimeInterval else { return }
-        sleepController.allowSleep(in: seconds)
+        guard let payload = sender.representedObject as? DurationPayload else { return }
+        sleepController.allowSleep(in: payload.seconds, selection: payload.selection)
     }
 
     @objc private func toggleLaunchAtLogin() {

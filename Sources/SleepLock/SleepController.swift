@@ -3,6 +3,17 @@ import IOKit.pwr_mgt
 
 @MainActor
 final class SleepController {
+    enum ActiveSelection: String {
+        case none
+        case keepAwake1h
+        case keepAwake3h
+        case keepAwake5h
+        case keepAwakeInfinite
+        case allowSleep30m
+        case allowSleep1h
+        case allowSleep2h
+    }
+
     enum SleepMode: Equatable {
         case off
         case keepAwakeInfinite
@@ -26,6 +37,7 @@ final class SleepController {
     private enum DefaultsKeys {
         static let modeKind = "sleepMode.kind"
         static let modeEnd = "sleepMode.end"
+        static let activeSelection = "sleepMode.activeSelection"
     }
 
     enum PersistedModeKind: String {
@@ -42,6 +54,12 @@ final class SleepController {
         }
     }
 
+    private(set) var activeSelection: ActiveSelection = .none {
+        didSet {
+            defaults.set(activeSelection.rawValue, forKey: DefaultsKeys.activeSelection)
+        }
+    }
+
     var onModeChange: ((SleepMode) -> Void)?
 
     private var activityToken: NSObjectProtocol?
@@ -55,19 +73,19 @@ final class SleepController {
     }
 
     func turnOff() {
-        apply(mode: .off)
+        apply(mode: .off, selection: .none)
     }
 
     func keepAwakeIndefinitely() {
-        apply(mode: .keepAwakeInfinite)
+        apply(mode: .keepAwakeInfinite, selection: .keepAwakeInfinite)
     }
 
-    func keepAwake(for duration: TimeInterval) {
-        apply(mode: .keepAwakeUntil(Date().addingTimeInterval(duration)))
+    func keepAwake(for duration: TimeInterval, selection: ActiveSelection = .none) {
+        apply(mode: .keepAwakeUntil(Date().addingTimeInterval(duration)), selection: selection)
     }
 
-    func allowSleep(in duration: TimeInterval) {
-        apply(mode: .allowSleepAfter(Date().addingTimeInterval(duration)))
+    func allowSleep(in duration: TimeInterval, selection: ActiveSelection = .none) {
+        apply(mode: .allowSleepAfter(Date().addingTimeInterval(duration)), selection: selection)
     }
 
     func toggleQuick() {
@@ -94,12 +112,13 @@ final class SleepController {
         return SleepTimeFormatter.detailedLabel(until: endDate)
     }
 
-    private func apply(mode newMode: SleepMode) {
+    private func apply(mode newMode: SleepMode, selection newSelection: ActiveSelection) {
         // Always reset previous timer/activity before setting new mode to avoid token leaks.
         stopTimer()
         stopUserActivityUpdates()
         stopAwakeActivity()
 
+        activeSelection = newSelection
         mode = newMode
 
         switch newMode {
@@ -110,6 +129,7 @@ final class SleepController {
             startUserActivityUpdates()
         case .keepAwakeUntil(let endDate), .allowSleepAfter(let endDate):
             guard endDate > Date() else {
+                activeSelection = .none
                 mode = .off
                 return
             }
@@ -212,29 +232,34 @@ final class SleepController {
 
         switch kind {
         case .off:
-            apply(mode: .off)
+            apply(mode: .off, selection: .none)
         case .keepAwakeInfinite:
-            apply(mode: .keepAwakeInfinite)
+            apply(mode: .keepAwakeInfinite, selection: restoreActiveSelection())
         case .keepAwakeUntil:
-            restoreTimedMode(factory: SleepMode.keepAwakeUntil)
+            restoreTimedMode(factory: SleepMode.keepAwakeUntil, selection: restoreActiveSelection())
         case .allowSleepAfter:
-            restoreTimedMode(factory: SleepMode.allowSleepAfter)
+            restoreTimedMode(factory: SleepMode.allowSleepAfter, selection: restoreActiveSelection())
         }
     }
 
-    private func restoreTimedMode(factory: (Date) -> SleepMode) {
+    private func restoreTimedMode(factory: (Date) -> SleepMode, selection: ActiveSelection) {
         let endTime = defaults.double(forKey: DefaultsKeys.modeEnd)
         guard endTime > 0 else {
-            apply(mode: .off)
+            apply(mode: .off, selection: .none)
             return
         }
 
         let endDate = Date(timeIntervalSince1970: endTime)
         guard endDate > Date() else {
-            apply(mode: .off)
+            apply(mode: .off, selection: .none)
             return
         }
 
-        apply(mode: factory(endDate))
+        apply(mode: factory(endDate), selection: selection)
+    }
+
+    private func restoreActiveSelection() -> ActiveSelection {
+        let raw = defaults.string(forKey: DefaultsKeys.activeSelection)
+        return raw.flatMap(ActiveSelection.init(rawValue:)) ?? .none
     }
 }
