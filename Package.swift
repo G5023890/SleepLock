@@ -15,9 +15,7 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "SleepLock",
-            resources: [
-                .process("Resources")
-            ]
+            exclude: ["Resources"]
         ),
         .testTarget(
             name: "SleepLockTests",

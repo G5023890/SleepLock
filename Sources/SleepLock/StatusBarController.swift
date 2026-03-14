@@ -1,21 +1,18 @@
 import AppKit
+import SwiftUI
 
 @MainActor
-final class StatusBarController: NSObject {
+final class StatusBarController: NSObject, NSPopoverDelegate {
     private static let customIdleIconName = "SleepLockStatus_36x36@2x"
     private static let customIdleIconExt = "png"
 
     private let statusItem: NSStatusItem
     private let sleepController: SleepController
     private let launchAtLoginManager = LaunchAtLoginManager()
-
-    private let menuTitle = NSMenuItem(title: "SleepLock", action: nil, keyEquivalent: "")
-    private var launchAtLoginItem: NSMenuItem?
-    
-    private struct DurationPayload {
-        let seconds: TimeInterval
-        let selection: SleepController.ActiveSelection
-    }
+    private let popover = NSPopover()
+    private let popoverViewModel = SleepLockPopoverViewModel()
+    private var localEventMonitor: Any?
+    private var globalEventMonitor: Any?
 
     init(controller: SleepController) {
         self.sleepController = controller
@@ -23,6 +20,7 @@ final class StatusBarController: NSObject {
         super.init()
 
         configureStatusButton()
+        configurePopover()
         bindState()
         updateUI()
     }
@@ -35,6 +33,14 @@ final class StatusBarController: NSObject {
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         button.font = .systemFont(ofSize: 11, weight: .medium)
         button.imagePosition = .imageLeading
+    }
+
+    private func configurePopover() {
+        popover.behavior = .transient
+        popover.animates = true
+        popover.delegate = self
+        popover.contentSize = NSSize(width: 220, height: 250)
+        popover.contentViewController = NSHostingController(rootView: makePopoverView())
     }
 
     private func bindState() {
@@ -55,215 +61,159 @@ final class StatusBarController: NSObject {
             return
         }
 
-        showMenu()
+        togglePopover()
     }
 
-    private func showMenu() {
-        let menu = buildMenu()
-        statusItem.menu = menu
-        statusItem.button?.performClick(nil)
-        statusItem.menu = nil
-    }
+    private func togglePopover() {
+        guard let button = statusItem.button else { return }
 
-    private func buildMenu() -> NSMenu {
-        let menu = NSMenu()
-        menu.autoenablesItems = false
-
-        menuTitle.target = nil
-        menuTitle.action = nil
-        menuTitle.isEnabled = false
-        menu.addItem(menuTitle)
-        menu.addItem(.separator())
-
-        menu.addItem(sectionHeader(symbolName: "sun.max.fill", text: "Keep awake"))
-
-        menu.addItem(
-            durationItem(
-                title: "1 hour",
-                seconds: 60 * 60,
-                selection: .keepAwake1h,
-                selector: #selector(keepAwakeForDuration(_:)),
-                checked: sleepController.activeSelection == .keepAwake1h
-            )
-        )
-        menu.addItem(
-            durationItem(
-                title: "3 hours",
-                seconds: 3 * 60 * 60,
-                selection: .keepAwake3h,
-                selector: #selector(keepAwakeForDuration(_:)),
-                checked: sleepController.activeSelection == .keepAwake3h
-            )
-        )
-        menu.addItem(
-            durationItem(
-                title: "5 hours",
-                seconds: 5 * 60 * 60,
-                selection: .keepAwake5h,
-                selector: #selector(keepAwakeForDuration(_:)),
-                checked: sleepController.activeSelection == .keepAwake5h
-            )
-        )
-        let untilTurnedOff = indentedItem(title: "Until turned off", action: #selector(keepAwakeIndefinitely))
-        untilTurnedOff.state = sleepController.activeSelection == .keepAwakeInfinite ? .on : .off
-        menu.addItem(untilTurnedOff)
-
-        menu.addItem(spacerItem())
-        menu.addItem(sectionHeader(symbolName: "moon.fill", text: "Allow sleep in"))
-
-        menu.addItem(
-            durationItem(
-                title: "30 min",
-                seconds: 30 * 60,
-                selection: .allowSleep30m,
-                selector: #selector(allowSleepInDuration(_:)),
-                checked: sleepController.activeSelection == .allowSleep30m
-            )
-        )
-        menu.addItem(
-            durationItem(
-                title: "1 hour",
-                seconds: 60 * 60,
-                selection: .allowSleep1h,
-                selector: #selector(allowSleepInDuration(_:)),
-                checked: sleepController.activeSelection == .allowSleep1h
-            )
-        )
-        menu.addItem(
-            durationItem(
-                title: "2 hours",
-                seconds: 2 * 60 * 60,
-                selection: .allowSleep2h,
-                selector: #selector(allowSleepInDuration(_:)),
-                checked: sleepController.activeSelection == .allowSleep2h
-            )
-        )
-
-        menu.addItem(.separator())
-        menu.addItem(item(title: "Disable SleepLock", action: #selector(turnOff)))
-        menu.addItem(.separator())
-
-        let launchItem = item(title: "Launch at login", action: #selector(toggleLaunchAtLogin))
-        launchItem.state = launchAtLoginManager.isEnabled ? .on : .off
-        menu.addItem(launchItem)
-        launchAtLoginItem = launchItem
-
-        menu.addItem(item(title: "About SleepLock", action: #selector(showAbout)))
-        menu.addItem(item(title: "Quit", action: #selector(quitApp)))
-
-        return menu
-    }
-
-    private func item(title: String, action: Selector?) -> NSMenuItem {
-        let menuItem = NSMenuItem(title: title, action: action, keyEquivalent: "")
-        menuItem.target = self
-        return menuItem
-    }
-
-    private func durationItem(
-        title: String,
-        seconds: TimeInterval,
-        selection: SleepController.ActiveSelection,
-        selector: Selector,
-        checked: Bool
-    ) -> NSMenuItem {
-        let menuItem = indentedItem(title: title, action: selector)
-        menuItem.representedObject = DurationPayload(seconds: seconds, selection: selection)
-        menuItem.state = checked ? .on : .off
-        return menuItem
-    }
-
-    private func sectionHeader(symbolName: String, text: String) -> NSMenuItem {
-        let menuItem = NSMenuItem()
-        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize, weight: .semibold)
-        let color = NSColor.labelColor
-
-        let title = NSMutableAttributedString()
-        if let symbolImage = NSImage(
-            systemSymbolName: symbolName,
-            accessibilityDescription: text
-        )?.withSymbolConfiguration(.init(pointSize: 14, weight: .semibold)) {
-            symbolImage.isTemplate = true
-            let attachment = NSTextAttachment()
-            attachment.image = symbolImage
-            title.append(NSAttributedString(attachment: attachment))
-            title.append(NSAttributedString(string: " "))
+        if popover.isShown {
+            popover.performClose(nil)
+            return
         }
-        title.append(
-            NSAttributedString(
-                string: text,
-                attributes: [
-                    .font: font,
-                    .foregroundColor: color
-                ]
-            )
-        )
-        menuItem.attributedTitle = title
-        menuItem.isEnabled = true
-        menuItem.action = nil
-        menuItem.target = nil
 
-        return menuItem
+        updatePopoverContent()
+        button.highlight(true)
+        startOutsideClickMonitoring()
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
-    private func spacerItem() -> NSMenuItem {
-        let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-        item.isEnabled = false
-        item.attributedTitle = NSAttributedString(
-            string: " ",
-            attributes: [
-                .font: NSFont.systemFont(ofSize: 6),
-                .foregroundColor: NSColor.clear
-            ]
-        )
-        return item
+    private func updatePopoverContent() {
+        popover.contentViewController = NSHostingController(rootView: makePopoverView())
     }
 
-    private func indentedItem(title: String, action: Selector?) -> NSMenuItem {
-        let menuItem = item(title: title, action: action)
-        let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.firstLineHeadIndent = 12
-        paragraphStyle.headIndent = 12
-
-        menuItem.attributedTitle = NSAttributedString(
-            string: title,
-            attributes: [
-                .font: NSFont.menuFont(ofSize: 0),
-                .foregroundColor: NSColor.labelColor,
-                .paragraphStyle: paragraphStyle
-            ]
+    private func makePopoverView() -> some View {
+        SleepLockPopoverView(
+            viewModel: popoverViewModel,
+            onKeepAwake1Hour: { [weak self] in
+                self?.keepAwake(for: 60 * 60, selection: .keepAwake1h)
+            },
+            onKeepAwake3Hours: { [weak self] in
+                self?.keepAwake(for: 3 * 60 * 60, selection: .keepAwake3h)
+            },
+            onKeepAwake5Hours: { [weak self] in
+                self?.keepAwake(for: 5 * 60 * 60, selection: .keepAwake5h)
+            },
+            onKeepAwakeUntilTurnedOff: { [weak self] in
+                self?.keepAwakeIndefinitely()
+            },
+            onAllowSleep30Minutes: { [weak self] in
+                self?.allowSleep(in: 30 * 60, selection: .allowSleep30m)
+            },
+            onAllowSleep1Hour: { [weak self] in
+                self?.allowSleep(in: 60 * 60, selection: .allowSleep1h)
+            },
+            onAllowSleep2Hours: { [weak self] in
+                self?.allowSleep(in: 2 * 60 * 60, selection: .allowSleep2h)
+            },
+            onDisable: { [weak self] in
+                self?.turnOff()
+            },
+            onToggleLaunchAtLogin: { [weak self] in
+                self?.toggleLaunchAtLogin()
+            },
+            onAbout: { [weak self] in
+                self?.showAbout()
+            },
+            onQuit: { [weak self] in
+                self?.quitApp()
+            }
         )
-        return menuItem
     }
 
-    @objc private func turnOff() {
+    private func keepAwake(for duration: TimeInterval, selection: SleepController.ActiveSelection) {
+        sleepController.keepAwake(for: duration, selection: selection)
+        closePopover()
+    }
+
+    private func allowSleep(in duration: TimeInterval, selection: SleepController.ActiveSelection) {
+        sleepController.allowSleep(in: duration, selection: selection)
+        closePopover()
+    }
+
+    private func turnOff() {
         sleepController.turnOff()
+        closePopover()
     }
 
-    @objc private func keepAwakeIndefinitely() {
+    private func keepAwakeIndefinitely() {
         sleepController.keepAwakeIndefinitely()
+        closePopover()
     }
 
-    @objc private func keepAwakeForDuration(_ sender: NSMenuItem) {
-        guard let payload = sender.representedObject as? DurationPayload else { return }
-        sleepController.keepAwake(for: payload.seconds, selection: payload.selection)
-    }
-
-    @objc private func allowSleepInDuration(_ sender: NSMenuItem) {
-        guard let payload = sender.representedObject as? DurationPayload else { return }
-        sleepController.allowSleep(in: payload.seconds, selection: payload.selection)
-    }
-
-    @objc private func toggleLaunchAtLogin() {
+    private func toggleLaunchAtLogin() {
         launchAtLoginManager.setEnabled(!launchAtLoginManager.isEnabled)
-        launchAtLoginItem?.state = launchAtLoginManager.isEnabled ? .on : .off
     }
 
-    @objc private func quitApp() {
+    private func closePopover() {
+        if popover.isShown {
+            popover.performClose(nil)
+        }
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        stopOutsideClickMonitoring()
+        statusItem.button?.highlight(false)
+    }
+
+    private func startOutsideClickMonitoring() {
+        stopOutsideClickMonitoring()
+
+        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            self?.handleOutsideInteraction(event)
+            return event
+        }
+
+        globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            self?.handleOutsideInteraction(event)
+        }
+    }
+
+    private func stopOutsideClickMonitoring() {
+        if let localEventMonitor {
+            NSEvent.removeMonitor(localEventMonitor)
+            self.localEventMonitor = nil
+        }
+
+        if let globalEventMonitor {
+            NSEvent.removeMonitor(globalEventMonitor)
+            self.globalEventMonitor = nil
+        }
+    }
+
+    private func handleOutsideInteraction(_ event: NSEvent) {
+        guard popover.isShown else { return }
+        guard let popoverWindow = popover.contentViewController?.view.window else {
+            closePopover()
+            return
+        }
+
+        let eventLocationOnScreen = NSEvent.mouseLocation
+        if popoverWindow.frame.contains(eventLocationOnScreen) {
+            return
+        }
+
+        if let buttonWindow = statusItem.button?.window {
+            let eventLocationInButtonWindow = buttonWindow.convertPoint(
+                fromScreen: NSPoint(x: eventLocationOnScreen.x, y: eventLocationOnScreen.y)
+            )
+
+            if statusItem.button?.bounds.contains(eventLocationInButtonWindow) == true {
+                return
+            }
+        }
+
+        closePopover()
+    }
+
+    private func quitApp() {
         NSApp.terminate(nil)
     }
 
-    @objc private func showAbout() {
+    private func showAbout() {
+        closePopover()
+
         let shortVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "1.0"
         let buildVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String) ?? shortVersion
 
@@ -279,7 +229,7 @@ final class StatusBarController: NSObject {
 
         NSApp.orderFrontStandardAboutPanel(options: [
             .applicationName: "SleepLock",
-            .applicationIcon: NSApp.applicationIconImage,
+            .applicationIcon: NSApp.applicationIconImage as Any,
             .credits: credits,
             .version: shortVersion,
             .applicationVersion: "Version \(shortVersion) (\(buildVersion))"
@@ -290,7 +240,11 @@ final class StatusBarController: NSObject {
     private func updateUI() {
         updateStatusButtonTitle()
         updateTooltip()
-        launchAtLoginItem?.state = launchAtLoginManager.isEnabled ? .on : .off
+        popoverViewModel.update(
+            mode: sleepController.mode,
+            activeSelection: sleepController.activeSelection,
+            isLaunchAtLoginEnabled: launchAtLoginManager.isEnabled
+        )
     }
 
     private func updateStatusButtonTitle() {
@@ -354,7 +308,7 @@ final class StatusBarController: NSObject {
         moon.isTemplate = true
         sun.isTemplate = true
 
-        let composite = NSImage(size: size, flipped: false) { rect in
+        let composite = NSImage(size: size, flipped: false) { _ in
             let moonRect = NSRect(x: 1.2, y: 1.2, width: 14.5, height: 14.5)
             let sunRect = NSRect(x: 8.5, y: 7.3, width: 9.4, height: 9.4)
             moon.draw(in: moonRect)
@@ -367,7 +321,7 @@ final class StatusBarController: NSObject {
 
     private func makeCustomIdleIcon() -> NSImage? {
         guard
-            let imageURL = Bundle.module.url(
+            let imageURL = Bundle.main.url(
                 forResource: Self.customIdleIconName,
                 withExtension: Self.customIdleIconExt
             ),

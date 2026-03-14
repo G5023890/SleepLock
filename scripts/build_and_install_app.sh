@@ -15,6 +15,7 @@ SKIP_SIGN="${SKIP_SIGN:-0}"
 SIGN_IDENTITY="${SIGN_IDENTITY:-}"
 APP_VERSION="${APP_VERSION:-1.3.0}"
 BUILD_VERSION="${BUILD_VERSION:-3}"
+STATUS_ICON_SOURCE="${STATUS_ICON_SOURCE:-$PROJECT_DIR/Sources/SleepLock/Resources/SleepLockStatus_36x36@2x.png}"
 RESOLVED_SIGN_IDENTITY=""
 STAGING_ROOT=""
 APP_STAGE=""
@@ -137,6 +138,11 @@ if [[ -n "$ICON_PATH" ]]; then
   ICON_PLIST_BLOCK=$'  <key>CFBundleIconFile</key>\n  <string>AppIcon</string>'
 else
   ICON_PLIST_BLOCK=""
+fi
+
+if [[ -f "$STATUS_ICON_SOURCE" ]]; then
+  /usr/bin/ditto --norsrc "$STATUS_ICON_SOURCE" "$APP_STAGE/Contents/Resources/SleepLockStatus_36x36@2x.png"
+  xattr -c "$APP_STAGE/Contents/Resources/SleepLockStatus_36x36@2x.png" 2>/dev/null || true
 fi
 
 cat > "$APP_STAGE/Contents/Info.plist" <<PLIST
