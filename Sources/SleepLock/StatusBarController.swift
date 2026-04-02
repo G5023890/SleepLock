@@ -336,7 +336,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
             source.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
             return true
         }
-        rendered.isTemplate = false
+        rendered.isTemplate = true
         return rendered
     }
 
