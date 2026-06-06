@@ -13,9 +13,10 @@ LEGACY_INSTALL_DIR="${LEGACY_INSTALL_DIR:-/Applications/SleepLock.app}"
 ICON_SOURCE="${ICON_SOURCE:-$PROJECT_DIR/AppIcon.icns}"
 SKIP_SIGN="${SKIP_SIGN:-0}"
 SIGN_IDENTITY="${SIGN_IDENTITY:-}"
-APP_VERSION="${APP_VERSION:-1.3.0}"
-BUILD_VERSION="${BUILD_VERSION:-3}"
-STATUS_ICON_SOURCE="${STATUS_ICON_SOURCE:-$PROJECT_DIR/Sources/SleepLock/Resources/SleepLockStatus_36x36@2x.png}"
+APP_VERSION="${APP_VERSION:-1.3.1}"
+BUILD_VERSION="${BUILD_VERSION:-4}"
+STATUS_ICON_SOURCE="${STATUS_ICON_SOURCE:-$PROJECT_DIR/Sources/SleepLock/Resources/IconBarLight.png}"
+ENTITLEMENTS_SOURCE="${ENTITLEMENTS_SOURCE:-$PROJECT_DIR/SleepLock.entitlements}"
 RESOLVED_SIGN_IDENTITY=""
 STAGING_ROOT=""
 APP_STAGE=""
@@ -61,10 +62,18 @@ sign_bundle_if_needed() {
 
   if [[ -n "$RESOLVED_SIGN_IDENTITY" ]]; then
     log "Signing with identity: $RESOLVED_SIGN_IDENTITY"
-    codesign --force --deep --options runtime --sign "$RESOLVED_SIGN_IDENTITY" "$bundle"
+    if [[ -f "$ENTITLEMENTS_SOURCE" ]]; then
+      codesign --force --deep --options runtime --entitlements "$ENTITLEMENTS_SOURCE" --sign "$RESOLVED_SIGN_IDENTITY" "$bundle"
+    else
+      codesign --force --deep --options runtime --sign "$RESOLVED_SIGN_IDENTITY" "$bundle"
+    fi
   else
     log "No Apple Development identity found; using ad-hoc signature"
-    codesign --force --deep --sign - "$bundle"
+    if [[ -f "$ENTITLEMENTS_SOURCE" ]]; then
+      codesign --force --deep --entitlements "$ENTITLEMENTS_SOURCE" --sign - "$bundle"
+    else
+      codesign --force --deep --sign - "$bundle"
+    fi
   fi
 
   codesign --verify --deep --strict "$bundle"
@@ -141,8 +150,8 @@ else
 fi
 
 if [[ -f "$STATUS_ICON_SOURCE" ]]; then
-  /usr/bin/ditto --norsrc "$STATUS_ICON_SOURCE" "$APP_STAGE/Contents/Resources/SleepLockStatus_36x36@2x.png"
-  xattr -c "$APP_STAGE/Contents/Resources/SleepLockStatus_36x36@2x.png" 2>/dev/null || true
+  /usr/bin/ditto --norsrc "$STATUS_ICON_SOURCE" "$APP_STAGE/Contents/Resources/IconBarLight.png"
+  xattr -c "$APP_STAGE/Contents/Resources/IconBarLight.png" 2>/dev/null || true
 fi
 
 cat > "$APP_STAGE/Contents/Info.plist" <<PLIST
@@ -165,6 +174,8 @@ ${ICON_PLIST_BLOCK}
   <string>${APP_DISPLAY_NAME}</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.utilities</string>
   <key>CFBundleShortVersionString</key>
   <string>${APP_VERSION}</string>
   <key>CFBundleVersion</key>

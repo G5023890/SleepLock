@@ -2,6 +2,8 @@
 
 SleepLock is a native macOS menu bar utility that controls when your Mac is allowed to sleep & when your Mac stays awake.
 
+Current release: `1.3.1` (`build 4`)
+
 ## UI Preview
 
 <img src="docs/images/SleepLockMenu.png" alt="SleepLock menu preview" width="221" />
@@ -15,8 +17,10 @@ The app is designed as a lightweight system-style tool:
 ## Requirements
 
 - macOS 13+
-- Swift toolchain (SwiftPM)
-- Apple Development certificate (optional, but recommended for stable signing)
+- Swift 6.2 toolchain
+- Xcode with the macOS SDK for Xcode project builds
+- Apple Development certificate for local install signing
+- Developer ID Application certificate for notarized DMG releases
 
 ## Core behavior
 
@@ -44,7 +48,7 @@ Timers are absolute wall-clock timers and do not reset based on user activity.
 
 ## Menu bar icons
 
-- **Startup / Idle (`off`)**: combined moon+sun template icon.
+- **Startup / Idle (`off`)**: bundled template-style `IconBarLight.png`.
 - **Stay awake infinite**: `sun.max.fill`.
 - **Keep awake timer**: `sun.max.fill` + remaining time (`Nh` / `Nm`).
 - **Allow sleep timer**: `moon.fill` + remaining time (`Nh` / `Nm`).
@@ -54,15 +58,15 @@ All menu bar icons are template monochrome icons and adapt automatically to Ligh
 ## Current menu structure
 
 - `Turn Off`
-- `Keep a wake for:`
+- `Keep awake for:`
   - `1 hour`
-  - `3 Hour`
-  - `5 Hour`
-  - `Until manually turn off`
+  - `3 hours`
+  - `5 hours`
+  - `Until manually turned off`
 - `Allow Sleep In:`
   - `30 min`
   - `1 hour`
-  - `2 hour`
+  - `2 hours`
 - `Launch at login`
 - `Quit`
 
@@ -77,7 +81,7 @@ The app uses `SMAppService.mainApp` for launch-at-login registration.
 
 ## Build and install
 
-Project includes scripts for stable local install/signing workflow.
+Project includes scripts for stable local install/signing workflow and notarized release packaging.
 
 ### 1) Generate app icon (`AppIcon.icns`)
 
@@ -101,6 +105,27 @@ Output app locations:
 - `./dist/SleepLock.app`
 - `/Applications/SleepLock.app`
 
+The local install script builds with SwiftPM and signs with an Apple Development identity when available. It bundles `Sources/SleepLock/Resources/IconBarLight.png` and applies `SleepLock.entitlements`.
+
+### 3) Build a signed release DMG
+
+```bash
+./scripts/build_release_dmg.sh
+```
+
+Release output:
+- `./dist/release/SleepLock-1.3.1-4.dmg`
+
+The release script uses `SleepLock.xcodeproj` with `xcodebuild`, creates a Universal 2 app (`x86_64` + `arm64`), signs with Developer ID, creates a DMG, and can submit it to Apple notarization.
+
+To notarize with a saved notarytool profile:
+
+```bash
+NOTARIZE=1 NOTARY_KEYCHAIN_PROFILE=SleepLockNotary ./scripts/build_release_dmg.sh
+```
+
+The generated release DMG is kept out of git by `.gitignore`.
+
 ## Development
 
 ### Run tests
@@ -116,6 +141,19 @@ swift test
 cd .
 swift build -c release
 ```
+
+SwiftPM release builds are intended for local development. Use `scripts/build_release_dmg.sh` for the distributable Universal 2 package.
+
+## App Store Connect
+
+App Store listing notes and screenshots are tracked in:
+- `AppStoreConnect/AppStoreListing.md`
+- `AppStoreConnect/Screenshots/SleepLock-AppStore-Preview.png`
+
+Current app metadata:
+- Bundle identifier: `com.grigorym.SleepLock`
+- Category: `Utilities`
+- Sandbox: enabled via `SleepLock.entitlements`
 
 ## Repository
 
@@ -135,5 +173,9 @@ See `/Users/grigorymordokhovich/Documents/Develop/SleepLock/LICENSE`.
 - `Sources/SleepLock/SleepSystemController.swift`
 - `Sources/SleepLock/LaunchAtLoginManager.swift`
 - `Sources/SleepLock/SleepTimeFormatter.swift`
+- `Sources/SleepLock/Resources/IconBarLight.png`
+- `SleepLock.xcodeproj/project.pbxproj`
+- `SleepLock.entitlements`
 - `scripts/build_and_install_app.sh`
+- `scripts/build_release_dmg.sh`
 - `scripts/generate_app_icon.sh`

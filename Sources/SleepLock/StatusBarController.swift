@@ -3,7 +3,7 @@ import SwiftUI
 
 @MainActor
 final class StatusBarController: NSObject, NSPopoverDelegate {
-    private static let customIdleIconName = "SleepLockStatus_36x36@2x"
+    private static let customIdleIconName = "IconBarLight"
     private static let customIdleIconExt = "png"
 
     private let statusItem: NSStatusItem
@@ -11,8 +11,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private let launchAtLoginManager = LaunchAtLoginManager()
     private let popover = NSPopover()
     private let popoverViewModel = SleepLockPopoverViewModel()
-    private var localEventMonitor: Any?
-    private var globalEventMonitor: Any?
 
     init(controller: SleepController) {
         self.sleepController = controller
@@ -74,7 +72,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 
         updatePopoverContent()
         button.highlight(true)
-        startOutsideClickMonitoring()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -153,58 +150,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     }
 
     func popoverDidClose(_ notification: Notification) {
-        stopOutsideClickMonitoring()
         statusItem.button?.highlight(false)
-    }
-
-    private func startOutsideClickMonitoring() {
-        stopOutsideClickMonitoring()
-
-        localEventMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            self?.handleOutsideInteraction(event)
-            return event
-        }
-
-        globalEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            self?.handleOutsideInteraction(event)
-        }
-    }
-
-    private func stopOutsideClickMonitoring() {
-        if let localEventMonitor {
-            NSEvent.removeMonitor(localEventMonitor)
-            self.localEventMonitor = nil
-        }
-
-        if let globalEventMonitor {
-            NSEvent.removeMonitor(globalEventMonitor)
-            self.globalEventMonitor = nil
-        }
-    }
-
-    private func handleOutsideInteraction(_ event: NSEvent) {
-        guard popover.isShown else { return }
-        guard let popoverWindow = popover.contentViewController?.view.window else {
-            closePopover()
-            return
-        }
-
-        let eventLocationOnScreen = NSEvent.mouseLocation
-        if popoverWindow.frame.contains(eventLocationOnScreen) {
-            return
-        }
-
-        if let buttonWindow = statusItem.button?.window {
-            let eventLocationInButtonWindow = buttonWindow.convertPoint(
-                fromScreen: NSPoint(x: eventLocationOnScreen.x, y: eventLocationOnScreen.y)
-            )
-
-            if statusItem.button?.bounds.contains(eventLocationInButtonWindow) == true {
-                return
-            }
-        }
-
-        closePopover()
     }
 
     private func quitApp() {
@@ -216,9 +162,10 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 
         let shortVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "1.0"
         let buildVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String) ?? shortVersion
+        let currentYear = Calendar.current.component(.year, from: Date())
 
         let description = "SleepLock is a native macOS menu bar utility that controls when your Mac is allowed to sleep & when your Mac stays awake."
-        let aboutText = "\(description)\n\nVersion \(shortVersion) (\(buildVersion))\nCopyright 2026"
+        let aboutText = "\(description)\n\nVersion \(shortVersion) (\(buildVersion))\nCopyright \(currentYear)"
         let credits = NSAttributedString(
             string: aboutText,
             attributes: [
